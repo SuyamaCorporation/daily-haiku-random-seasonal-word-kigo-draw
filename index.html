@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日替わり季語俳句発想ドロー</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-stone-900 text-stone-100 min-h-screen">
+<div class="max-w-2xl mx-auto p-4">
+  <h1 class="text-3xl text-center mb-1" style="font-family:serif;letter-spacing:0.2em;">季語 俳句ドロー</h1>
+  <p class="text-center text-stone-500 mb-5 text-sm">ランダムに季語を引いて俳句を詠む</p>
+
+  <!-- Season selector -->
+  <div class="flex gap-2 mb-5 justify-center">
+    <button onclick="drawKigo('spring')" class="px-3 py-1.5 rounded bg-green-800 text-green-200 text-sm" aria-label="春の季語">🌸 春</button>
+    <button onclick="drawKigo('summer')" class="px-3 py-1.5 rounded bg-yellow-800 text-yellow-200 text-sm" aria-label="夏の季語">☀️ 夏</button>
+    <button onclick="drawKigo('autumn')" class="px-3 py-1.5 rounded bg-orange-800 text-orange-200 text-sm" aria-label="秋の季語">🍂 秋</button>
+    <button onclick="drawKigo('winter')" class="px-3 py-1.5 rounded bg-blue-800 text-blue-200 text-sm" aria-label="冬の季語">❄️ 冬</button>
+    <button onclick="drawKigo()" class="px-3 py-1.5 rounded bg-stone-700 text-stone-200 text-sm font-semibold" aria-label="ランダム">🎲 ランダム</button>
+  </div>
+
+  <!-- Kigo display -->
+  <div class="bg-stone-800 rounded-2xl p-6 mb-5 text-center relative overflow-hidden">
+    <div id="kigo-season-badge" class="absolute top-3 right-3 text-xs px-2 py-1 rounded-full"></div>
+    <div id="kigo-word" class="text-4xl font-bold mb-2" style="font-family:serif;letter-spacing:0.15em;">―</div>
+    <div id="kigo-reading" class="text-stone-400 text-sm mb-1"></div>
+    <div id="kigo-meaning" class="text-stone-300 text-sm mb-3"></div>
+    <div id="kigo-prompt" class="text-xs text-stone-500 italic bg-stone-700/50 rounded-lg px-3 py-2"></div>
+  </div>
+
+  <!-- Haiku input -->
+  <div class="bg-stone-800 rounded-2xl p-4 mb-4">
+    <h2 class="text-sm font-semibold text-stone-300 mb-2" style="font-family:serif;">俳句を詠む</h2>
+    <div class="space-y-2">
+      <div class="flex gap-2 items-center">
+        <span class="text-xs text-stone-500 w-6">上</span>
+        <input type="text" id="line1" placeholder="五音（例：古池や）" maxlength="20" class="flex-1 bg-stone-700 border border-stone-600 rounded-lg px-3 py-2 text-sm text-white" style="font-family:serif;" aria-label="上の句（5音）">
+        <span id="count1" class="text-xs text-stone-500 w-6">5</span>
+      </div>
+      <div class="flex gap-2 items-center">
+        <span class="text-xs text-stone-500 w-6">中</span>
+        <input type="text" id="line2" placeholder="七音（例：蛙飛びこむ）" maxlength="20" class="flex-1 bg-stone-700 border border-stone-600 rounded-lg px-3 py-2 text-sm text-white" style="font-family:serif;" aria-label="中の句（7音）">
+        <span id="count2" class="text-xs text-stone-500 w-6">7</span>
+      </div>
+      <div class="flex gap-2 items-center">
+        <span class="text-xs text-stone-500 w-6">下</span>
+        <input type="text" id="line3" placeholder="五音（例：水の音）" maxlength="20" class="flex-1 bg-stone-700 border border-stone-600 rounded-lg px-3 py-2 text-sm text-white" style="font-family:serif;" aria-label="下の句（5音）">
+        <span id="count3" class="text-xs text-stone-500 w-6">5</span>
+      </div>
+    </div>
+    <button onclick="saveHaiku()" class="mt-3 w-full bg-stone-600 hover:bg-stone-500 text-white py-2 rounded-lg text-sm font-semibold" aria-label="保存する">📝 保存する</button>
+  </div>
+
+  <!-- Saved haiku -->
+  <div id="saved-section" class="hidden">
+    <h2 class="text-sm font-semibold text-stone-400 mb-2" style="font-family:serif;">保存した俳句</h2>
+    <div id="saved-haiku" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+    <button onclick="clearHaiku()" class="mt-2 text-xs text-stone-600 hover:text-stone-400" aria-label="全削除">全削除</button>
+  </div>
+</div>
+
+<script>
+const kigoData = {
+  spring: [
+    {word:'春霞',reading:'はるがすみ',meaning:'春の霞がたなびく様子',prompt:'遠くに霞む山を見て何を感じましたか？'},
+    {word:'桜',reading:'さくら',meaning:'春の代名詞。散る美しさ',prompt:'花吹雪の中に何を見ましたか？'},
+    {word:'菜の花',reading:'なのはな',meaning:'黄色い花が咲き誇る春の野',prompt:'一面の黄色の中で何を思いましたか？'},
+    {word:'春雨',reading:'はるさめ',meaning:'春に降る柔らかい雨',prompt:'春雨が降る中、あなたはどこにいましたか？'},
+    {word:'蝶',reading:'ちょう',meaning:'春の象徴。軽やかに舞う',prompt:'蝶が舞うのを見て心に浮かんだことは？'},
+    {word:'燕',reading:'つばめ',meaning:'春に渡来する鳥',prompt:'燕が巣を作る場所で何が起きていますか？'},
+    {word:'花見',reading:'はなみ',meaning:'桜の下で宴を楽しむ',prompt:'花見の場で気づいたことは？'},
+    {word:'春暁',reading:'しゅんぎょう',meaning:'春の夜明け',prompt:'春の夜明けに目覚めた時、何の音がしましたか？'},
+    {word:'若草',reading:'わかくさ',meaning:'春に萌え出た青草',prompt:'踏みしめた若草の感触はどうでしたか？'},
+    {word:'花曇',reading:'はなぐもり',meaning:'花が咲く頃の曇り空',prompt:'曇り空の下で花は何を語っていますか？'},
+    {word:'春の海',reading:'はるのうみ',meaning:'穏やかな春の海',prompt:'春の海に映った空はどんな色でしたか？'},
+    {word:'たんぽぽ',reading:'たんぽぽ',meaning:'黄色い花・綿毛が特徴',prompt:'綿毛が風に舞う瞬間に何を思いましたか？'},
+    {word:'椿',reading:'つばき',meaning:'落ちる花の潔さが特徴',prompt:'落ちた椿の花は何を語っていますか？'},
+    {word:'春眠',reading:'しゅんみん',meaning:'春の心地よい眠り',prompt:'春の眠りから覚めた時、夢に何が残っていましたか？'},
+    {word:'うぐいす',reading:'うぐいす',meaning:'春告げ鳥。澄んだ鳴き声',prompt:'うぐいすの声はどこから来ていましたか？'},
+  ],
+  summer: [
+    {word:'炎暑',reading:'えんしょ',meaning:'猛烈な夏の暑さ',prompt:'炎暑の中で動かずにいた時、何を考えましたか？'},
+    {word:'向日葵',reading:'ひまわり',meaning:'太陽に向かって咲く花',prompt:'向日葵の黄色は何を思い出させますか？'},
+    {word:'蝉',reading:'せみ',meaning:'夏の代名詞。鳴き声が暑さを増す',prompt:'蝉の声が止んだ瞬間、何が起きましたか？'},
+    {word:'夕立',reading:'ゆうだち',meaning:'夏の突然の激しい雨',prompt:'夕立が来た時、あなたはどこにいましたか？'},
+    {word:'花火',reading:'はなび',meaning:'夏の夜空を彩る',prompt:'花火が散る瞬間、隣にいた人の表情は？'},
+    {word:'緑陰',reading:'りょくいん',meaning:'緑の木陰。涼しさの象徴',prompt:'木陰で休んだ時、風はどこから吹いていましたか？'},
+    {word:'金魚',reading:'きんぎょ',meaning:'夏の縁日や金魚鉢',prompt:'金魚の赤い尾は何に例えられますか？'},
+    {word:'スイカ',reading:'すいか',meaning:'夏の果物の王様',prompt:'スイカを割る音は夏の何を表していますか？'},
+    {word:'入道雲',reading:'にゅうどうぐも',meaning:'夏の積乱雲',prompt:'入道雲の向こうに何が見えますか？'},
+    {word:'盆踊り',reading:'ぼんおどり',meaning:'お盆の踊り',prompt:'踊りの輪の外から見えたものは何ですか？'},
+  ],
+  autumn: [
+    {word:'紅葉',reading:'こうよう',meaning:'秋の木々が色づく',prompt:'真っ赤な紅葉の下に立った時、何を感じましたか？'},
+    {word:'月',reading:'つき',meaning:'秋の名月。中秋の月',prompt:'秋の月は何を照らしていましたか？'},
+    {word:'稲穂',reading:'いなほ',meaning:'実った稲が風にそよぐ',prompt:'黄金色の稲穂の海で何を見つけましたか？'},
+    {word:'栗',reading:'くり',meaning:'秋の実。イガが特徴',prompt:'栗拾いの帰り道、何を考えながら歩きましたか？'},
+    {word:'秋刀魚',reading:'さんま',meaning:'秋の味覚の代表',prompt:'秋刀魚を焼く煙は何の記憶を呼びましたか？'},
+    {word:'コスモス',reading:'コスモス',meaning:'秋桜。風に揺れる',prompt:'コスモス畑の向こうに何が見えましたか？'},
+    {word:'秋風',reading:'あきかぜ',meaning:'涼しく物悲しい風',prompt:'秋風が体を通り抜けた時、何を失いましたか？'},
+    {word:'落葉',reading:'おちば',meaning:'散り落ちる葉',prompt:'落葉を踏む音は何の終わりを告げていますか？'},
+    {word:'菊',reading:'きく',meaning:'秋の花。長寿の象徴',prompt:'菊の香りは何を運んできましたか？'},
+    {word:'いわし雲',reading:'いわしぐも',meaning:'秋の鱗状の雲',prompt:'いわし雲の下で空を見上げた理由は何ですか？'},
+  ],
+  winter: [
+    {word:'雪',reading:'ゆき',meaning:'白く降り積もる冬の象徴',prompt:'初雪が降った朝、最初に気づいたのは何ですか？'},
+    {word:'木枯らし',reading:'こがらし',meaning:'秋から冬の冷たい強風',prompt:'木枯らしが吹いた時、あなたの手は何をしていましたか？'},
+    {word:'冬枯れ',reading:'ふゆがれ',meaning:'冬の枯れた風景',prompt:'枯れ野に美しさを見つけましたか？'},
+    {word:'炭火',reading:'すみび',meaning:'炭で起こした暖かい火',prompt:'炭火を囲む時、誰のことを思いますか？'},
+    {word:'氷柱',reading:'つらら',meaning:'軒下に下がる氷',prompt:'つららが溶けていく音は何を語っていますか？'},
+    {word:'冬星',reading:'ふゆぼし',meaning:'冬の澄んだ夜空の星',prompt:'冬の星は夏の星と何が違いますか？'},
+    {word:'除夜の鐘',reading:'じょやのかね',meaning:'108の煩悩を払う鐘',prompt:'鐘の音の余韻の中で何を手放しましたか？'},
+    {word:'初日の出',reading:'はつひので',meaning:'元旦の日の出',prompt:'初日の出を見た瞬間、何を誓いましたか？'},
+    {word:'雪だるま',reading:'ゆきだるま',meaning:'雪で作る人形',prompt:'雪だるまに何を込めましたか？'},
+    {word:'冬の海',reading:'ふゆのうみ',meaning:'荒れた冬の海',prompt:'冬の海の色は何に似ていますか？'},
+  ]
+};
+
+let currentKigo = null;
+
+function drawKigo(season) {
+  const seasons = season ? [season] : ['spring','summer','autumn','winter'];
+  const s = seasons[Math.floor(Math.random()*seasons.length)];
+  const list = kigoData[s];
+  const k = list[Math.floor(Math.random()*list.length)];
+  currentKigo = k;
+  currentKigo.season = s;
+
+  const seasonColors = {spring:'bg-green-800 text-green-200', summer:'bg-yellow-800 text-yellow-200', autumn:'bg-orange-800 text-orange-200', winter:'bg-blue-800 text-blue-200'};
+  const seasonNames = {spring:'春',summer:'夏',autumn:'秋',winter:'冬'};
+  document.getElementById('kigo-season-badge').className = 'absolute top-3 right-3 text-xs px-2 py-1 rounded-full ' + seasonColors[s];
+  document.getElementById('kigo-season-badge').textContent = seasonNames[s];
+  document.getElementById('kigo-word').textContent = k.word;
+  document.getElementById('kigo-reading').textContent = '（' + k.reading + '）';
+  document.getElementById('kigo-meaning').textContent = k.meaning;
+  document.getElementById('kigo-prompt').textContent = '💭 ' + k.prompt;
+}
+
+function countMora(text) {
+  // Simple mora count for Japanese
+  return text.replace(/[ぁぃぅぇぉっゃゅょァィゥェォッャュョ]/g,'').length;
+}
+
+['1','2','3'].forEach(n => {
+  document.getElementById('line'+n).addEventListener('input', function() {
+    const mora = countMora(this.value);
+    document.getElementById('count'+n).textContent = mora;
+    document.getElementById('count'+n).className = 'text-xs w-6 ' + (mora === parseInt(n==='2'?'7':'5') ? 'text-green-400' : 'text-red-400');
+  });
+});
+
+function saveHaiku() {
+  const l1 = document.getElementById('line1').value.trim();
+  const l2 = document.getElementById('line2').value.trim();
+  const l3 = document.getElementById('line3').value.trim();
+  if (!l1 && !l2 && !l3) return;
+  const saved = JSON.parse(localStorage.getItem('haiku-list')||'[]');
+  saved.unshift({
+    text: [l1, l2, l3],
+    kigo: currentKigo?.word || '',
+    date: new Date().toLocaleDateString('ja-JP'),
+  });
+  localStorage.setItem('haiku-list', JSON.stringify(saved.slice(0,50)));
+  renderSaved();
+  document.getElementById('line1').value = '';
+  document.getElementById('line2').value = '';
+  document.getElementById('line3').value = '';
+}
+
+function renderSaved() {
+  const saved = JSON.parse(localStorage.getItem('haiku-list')||'[]');
+  if (saved.length === 0) { document.getElementById('saved-section').classList.add('hidden'); return; }
+  document.getElementById('saved-section').classList.remove('hidden');
+  document.getElementById('saved-haiku').innerHTML = saved.map(h => `
+    <div class="bg-stone-800 rounded-xl p-3 text-center" style="font-family:serif;">
+      <div class="text-sm text-stone-500 mb-1">${h.date} ${h.kigo ? '│ 季語: ' + h.kigo : ''}</div>
+      <div class="text-base">${h.text.filter(Boolean).join(' / ')}</div>
+    </div>
+  `).join('');
+}
+
+function clearHaiku() {
+  if (!confirm('保存した俳句を全て削除しますか？')) return;
+  localStorage.removeItem('haiku-list');
+  renderSaved();
+}
+
+drawKigo();
+renderSaved();
+</script>
+</body>
+</html>
